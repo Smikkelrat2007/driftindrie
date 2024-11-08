@@ -23,13 +23,17 @@ class BestGenomeSaver(neat.reporting.BaseReporter):
         self.filename = filename
         self.best_genome = None
         self.best_fitness = float('-inf')
-    
-    def post_evaluate(self, best_genome):
+        self.previous_generations_fitness = 0
+    def post_evaluate(self, config, population, species, best_genome):
         if best_genome.fitness > self.best_fitness:
             self.best_genome = best_genome
             self.best_fitness = best_genome.fitness
+            print(self.best_fitness)
             save_genome(self.best_genome, self.filename)
-
+        self.previous_generations_fitness = (best_genome.fitness)
+    def get_previous_generations_fitness(self):
+        return self.previous_generations_fitness
+    
 def save_genome(genome, filename="best_genome.pkl"):
     with open(filename, "wb") as f:
         pickle.dump(genome, f)
@@ -41,14 +45,15 @@ def load_genome(filename="best_genome.pkl"):
     print(len(f"|Genome loaded from: {filename}|") * "-", f"\n|Genome loaded from: {filename}|\n", len(f"|Genome loaded from: {filename}|") * "-")
     return genome
 
-def bereken_fitness(track_progress, time_alive, crashed, lazered):
+def bereken_fitness(track_progress, time_alive, crashed, lazered, hoogste_waarde):
     punten = ((track_progress/10) ** 1.1) * VERDER_OP_DE_BAAN_WEIGHT
     punten += time_alive * OVERLEEF_TIJD_WEIGHT
     if crashed:
         punten -= CRASH_PENALTY
-        punten += (track_progress / time_alive) * GEMIDDELDE_DELTA_V_WEIGHT
     if lazered:
         punten -= LAZERED_PENALTY
+    if not crashed and not lazered:
+        punten += ((track_progress / time_alive) ** 5)  * GEMIDDELDE_DELTA_V_WEIGHT * hoogste_waarde
     return round(punten)
 
 def simulatie_prep(genomes, config):
@@ -63,35 +68,39 @@ def simulatie_prep(genomes, config):
     simulate(ais, dict, hoogste_waarde, achtergrond, gras_pixels)
 
 def simulate(ais, punten_dict, hoogste_waarde, achtergrond, gras_pixels):
+    
     running = True
     i = 0
+    saver = BestGenomeSaver(filename="best_genome.pkl")
+    print(f"gen runned on: {achtergrond}")
     while running:
         i += 1
         running = inputs_kijken(pygame.key.get_pressed(), achtergrond, ais)
         for car, genome in ais:
             if not car.dood:
-                
                 lengte_lijst, punten = krijg_ai_info(car, punten_dict, gras_pixels)
                 aangepaste_lengte_lijst = []
                 for lengte in lengte_lijst:
                     aangepaste_lengte_lijst.append(lengte*0.1)
                 aangepaste_lengte_lijst.append(car.snelheid * 5)
-                apply_ai_outputs(car, car.neural_net.activate(aangepaste_lengte_lijst))
+                
+                
+                apply_ai_outputs(car, car.neural_net.activate(aangepaste_lengte_lijst), 1)
                 zou_ik_nu_fitness_moeten_calculaten = run_ai_auto(car, gras_pixels)
                 if zou_ik_nu_fitness_moeten_calculaten:
-                    punten = bereken_fitness(car.punten, i, car.dood, False)
+                    punten = bereken_fitness(car.punten, i, car.dood, False, hoogste_waarde)
                     genome.fitness = round(punten)
 
                 if car.punten > hoogste_waarde - 500:
                     running = False
 
-                if car.punten + 50 < i and i < 200:
+                if car.punten + 100 < i * 2:
                     car.kleur = (0,255,0)
-                    punten = bereken_fitness(car.punten, i, False, True)
+                    punten = bereken_fitness(car.punten, i, False, True, hoogste_waarde)
                     genome.fitness = round(punten)
                     car.dood = True
                     
-                if RUNTIMEFRAMES - i < 0:
+                if (i * 2) - 100 > hoogste_waarde:
                     running = False
     
         autos = [car for car, genome in ais] # checken of alle mfers dood zijn type shit
@@ -101,7 +110,7 @@ def simulate(ais, punten_dict, hoogste_waarde, achtergrond, gras_pixels):
 
     for car, genome in ais:
         if genome.fitness == 0:
-            punten = bereken_fitness(car.punten, i, car.dood, False)
+            punten = bereken_fitness(car.punten, i, car.dood, False, hoogste_waarde)
             genome.fitness = round(punten)
 
 def inputs_kijken(keys, achtergrond, ais):
@@ -109,9 +118,8 @@ def inputs_kijken(keys, achtergrond, ais):
         laat_simulatie_zien(achtergrond, [car for car, genome in ais])
 
     if keys[KILL_MYSELF_TOETS]:
-        running = False
-    
-    return running
+        return False
+    return True
 
 def laat_simulatie_zien(achtergrond, autos):
     meeste_punten = 0
