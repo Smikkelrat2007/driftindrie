@@ -73,7 +73,6 @@ def zoek_gras_pixels(achtergrond_plaatje):
 
 def mask_de_track():
     track = kies_een_random_track(vind_alle_tracks_in_folder())
-    print("track voor vandaag: ", track)
     if track in track_info_deluxe_max_ultra.keys():
         gras_pixels, dict, hoogste_waarde = track_info_deluxe_max_ultra[track]
     else:

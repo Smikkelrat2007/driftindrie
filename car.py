@@ -9,11 +9,11 @@ import neat
 def maak_test_auto(richting, stralen_lijst, autos):
     muis_x, muis_y = krijg_muis_positie()
     print(muis_x, muis_y)
-    autos.append(Auto(muis_x, muis_y, richting, 0, 3, 0.1, 0.05, 0.2, 10, 0, 0, 1, (255,0,255), 20, 40, pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT, stralen_lijst, 100, 0, ""))
+    autos.append(Auto(muis_x, muis_y, richting, 0, 3, 0.1, 0.05, 0.2, 10, 0.0001, 0.02, 1, (255,0,255), 20, 40, pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT, stralen_lijst, 100, 0, ""))
     return autos
 
 def maak_ai_auto(positie_x, positie_y, richting, stralen_lijst, tijd, net):
-    return Auto(positie_x, positie_y, richting, 0, 3, 0.1, 0.05, 0.2, 10, 0, 0, 1, (255,0,255), 20, 40, pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT, stralen_lijst, MAX_LENGTE_RAYS, tijd, net)
+    return Auto(positie_x, positie_y, richting, 2.5, 3, 0.1, 0.05, 0.2, 10, 0.0001, 0.02, 1, (255,0,255), 20, 40, pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT, stralen_lijst, MAX_LENGTE_RAYS, tijd, net)
 
 def krijg_ai_info(auto, punten_dict, gras_pixels):
     auto.spawn_rays(gras_pixels)
