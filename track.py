@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from info import *
 import random
 from collections import deque
@@ -14,7 +15,8 @@ def vind_alle_tracks_in_folder():
             bestanden_in_folder.append(bestand.name)
     return bestanden_in_folder
 
-def kies_een_random_track(bestanden_in_folder):
+def kies_een_random_track(bestanden_in_folder, track_info):
+    import info
     beschikbare_tracks = []
     for key in track_info.keys():
         if key in bestanden_in_folder:
@@ -71,8 +73,8 @@ def zoek_gras_pixels(achtergrond_plaatje):
     root.destroy()
     return gras_pixels
 
-def mask_de_track():
-    track = kies_een_random_track(vind_alle_tracks_in_folder())
+def mask_de_track(track_info):
+    track = kies_een_random_track(vind_alle_tracks_in_folder(), track_info)
     if track in track_info_deluxe_max_ultra.keys():
         gras_pixels, dict, hoogste_waarde = track_info_deluxe_max_ultra[track]
     else:

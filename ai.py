@@ -2,20 +2,11 @@ import neat
 import neat.activations
 from neat.checkpoint import Checkpointer
 
-
-
-
-
-import random
 import pygame
 from track import mask_de_track  # Function that sets up the track
-import time
 from car import *
 from display import *
 from info import *
-import pickle
-
-import neat
 import pickle
 
 class BestGenomeSaver(neat.reporting.BaseReporter):
@@ -46,7 +37,7 @@ def load_genome(filename="best_genome.pkl"):
     return genome
 
 def bereken_fitness(track_progress, time_alive, crashed, lazered, hoogste_waarde):
-    punten = ((track_progress/10) ** 1.1) * VERDER_OP_DE_BAAN_WEIGHT
+    punten = track_progress * VERDER_OP_DE_BAAN_WEIGHT
     punten += time_alive * OVERLEEF_TIJD_WEIGHT
     if crashed:
         punten -= CRASH_PENALTY
@@ -57,7 +48,9 @@ def bereken_fitness(track_progress, time_alive, crashed, lazered, hoogste_waarde
     return round(punten)
 
 def simulatie_prep(genomes, config):
-    dict, hoogste_waarde, achtergrond, gras_pixels = mask_de_track()
+    global track_info
+    
+    dict, hoogste_waarde, achtergrond, gras_pixels = mask_de_track(track_info)
     scherm_maken(scherm_breete, scherm_hoogte)
     ais = []
     for genome_id, genome in genomes:
@@ -68,39 +61,31 @@ def simulatie_prep(genomes, config):
     simulate(ais, dict, hoogste_waarde, achtergrond, gras_pixels)
 
 def simulate(ais, punten_dict, hoogste_waarde, achtergrond, gras_pixels):
+    global track_info
     
     running = True
     i = 0
-    saver = BestGenomeSaver(filename="best_genome.pkl")
-    print(f"gen runned on: {achtergrond}")
+    print(f"track: {achtergrond}")
     while running:
         i += 1
         running = inputs_kijken(pygame.key.get_pressed(), achtergrond, ais)
         for car, genome in ais:
             if not car.dood:
-                lengte_lijst, punten = krijg_ai_info(car, punten_dict, gras_pixels)
-                aangepaste_lengte_lijst = []
-                for lengte in lengte_lijst:
-                    aangepaste_lengte_lijst.append(lengte*0.1)
-                aangepaste_lengte_lijst.append(car.snelheid * 5)
-                
-                
+
+                aangepaste_lengte_lijst = [lengte * 0.1 for lengte in krijg_ai_info(car, punten_dict, gras_pixels)[0]] + [car.snelheid]
+
                 apply_ai_outputs(car, car.neural_net.activate(aangepaste_lengte_lijst), 1)
                 zou_ik_nu_fitness_moeten_calculaten = run_ai_auto(car, gras_pixels)
-                if zou_ik_nu_fitness_moeten_calculaten:
-                    punten = bereken_fitness(car.punten, i, car.dood, False, hoogste_waarde)
-                    genome.fitness = round(punten)
 
-                if car.punten > hoogste_waarde - 500:
-                    running = False
+                if zou_ik_nu_fitness_moeten_calculaten:
+                    genome.fitness = round(bereken_fitness(car.punten, i, car.dood, False, hoogste_waarde))
 
                 if car.punten + 100 < i * 2:
                     car.kleur = (0,255,0)
-                    punten = bereken_fitness(car.punten, i, False, True, hoogste_waarde)
-                    genome.fitness = round(punten)
+                    genome.fitness = round(bereken_fitness(car.punten, i, False, True, hoogste_waarde))
                     car.dood = True
                     
-                if (i * 2) - 100 > hoogste_waarde:
+                if (i * 2) - 100 > hoogste_waarde or car.punten > hoogste_waarde - 500:
                     running = False
     
         autos = [car for car, genome in ais] # checken of alle mfers dood zijn type shit
@@ -114,11 +99,15 @@ def simulate(ais, punten_dict, hoogste_waarde, achtergrond, gras_pixels):
             genome.fitness = round(punten)
 
 def inputs_kijken(keys, achtergrond, ais):
+    global track_info
     if keys[LAAT_ZIEN_TOETS]:
         laat_simulatie_zien(achtergrond, [car for car, genome in ais])
 
     if keys[KILL_MYSELF_TOETS]:
         return False
+    if keys[ITS_TIME]:
+        track_info = {"goofyahhtrack.png":[220, 100, 140], "untitled-2.png":[222, 101, 140], "lukeenbastrack.png": [630, 574, 210], "untitled.png":[246, 66,90]}
+        its_time_for_a_upgrade()
     return True
 
 def laat_simulatie_zien(achtergrond, autos):
