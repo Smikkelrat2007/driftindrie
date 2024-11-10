@@ -19,9 +19,10 @@ class BestGenomeSaver(neat.reporting.BaseReporter):
         if best_genome.fitness > self.best_fitness:
             self.best_genome = best_genome
             self.best_fitness = best_genome.fitness
-            print(self.best_fitness)
+            print(f"beste fitness tot nu toe: {self.best_fitness}")
             save_genome(self.best_genome, self.filename)
         self.previous_generations_fitness = (best_genome.fitness)
+
     def get_previous_generations_fitness(self):
         return self.previous_generations_fitness
     
@@ -36,7 +37,7 @@ def load_genome(filename="best_genome.pkl"):
     print(len(f"|Genome loaded from: {filename}|") * "-", f"\n|Genome loaded from: {filename}|\n", len(f"|Genome loaded from: {filename}|") * "-")
     return genome
 
-def bereken_fitness(track_progress, time_alive, crashed, lazered, hoogste_waarde):
+def bereken_fitness(track_progress, time_alive, crashed, lazered, hoogste_waarde, finished):
     punten = track_progress * VERDER_OP_DE_BAAN_WEIGHT
     punten += time_alive * OVERLEEF_TIJD_WEIGHT
     if crashed:
@@ -44,72 +45,95 @@ def bereken_fitness(track_progress, time_alive, crashed, lazered, hoogste_waarde
     if lazered:
         punten -= LAZERED_PENALTY
     if not crashed and not lazered:
-        punten += ((track_progress / time_alive) ** 5)  * GEMIDDELDE_DELTA_V_WEIGHT * hoogste_waarde
-    return round(punten)
-
-def simulatie_prep(genomes, config):
-    global track_info
+        punten += punten * 2
+    if finished:
+        punten += 2 * hoogste_waarde
     
-    dict, hoogste_waarde, achtergrond, gras_pixels = mask_de_track(track_info)
-    scherm_maken(scherm_breete, scherm_hoogte)
+    return round(punten)
+def maak_ais_aan(genomes, config, achtergrond):
     ais = []
     for genome_id, genome in genomes:
+        genome.fitness = 0
         net = neat.nn.FeedForwardNetwork.create(genome, config)
         car = maak_ai_auto(track_info[achtergrond][0], track_info[achtergrond][1], track_info[achtergrond][2], RAY_LIJST, 0, net)
-        genome.fitness = 0
         ais.append((car, genome))
+    return ais
+def simulatie_prep(genomes, config):
+    global track_info
+
+    dict, hoogste_waarde, achtergrond, gras_pixels = mask_de_track(track_info)
+    scherm_maken(scherm_breete, scherm_hoogte)
+    
+    if load_of_niet(pygame.key.get_pressed()):
+        genomes[1] = (1, load_genome())
+    ais = maak_ais_aan(genomes, config, achtergrond)
+    
     simulate(ais, dict, hoogste_waarde, achtergrond, gras_pixels)
+
 
 def simulate(ais, punten_dict, hoogste_waarde, achtergrond, gras_pixels):
     global track_info
     
     running = True
-    i = 0
+    frame = 0
+
     print(f"track: {achtergrond}")
+    
     while running:
-        i += 1
         running = inputs_kijken(pygame.key.get_pressed(), achtergrond, ais)
+        frame += 1
         for car, genome in ais:
             if not car.dood:
 
-                aangepaste_lengte_lijst = [lengte * 0.1 for lengte in krijg_ai_info(car, punten_dict, gras_pixels)[0]] + [car.snelheid]
+                apply_ai_outputs(car, car.neural_net.activate([lengte * LENGTE_RAYS_MULTIPLYER for lengte in krijg_ai_info(car, punten_dict, gras_pixels)[0]] + [car.snelheid]))
+                run_ai_auto(car, gras_pixels)
 
-                apply_ai_outputs(car, car.neural_net.activate(aangepaste_lengte_lijst), 1)
-                zou_ik_nu_fitness_moeten_calculaten = run_ai_auto(car, gras_pixels)
-
-                if zou_ik_nu_fitness_moeten_calculaten:
-                    genome.fitness = round(bereken_fitness(car.punten, i, car.dood, False, hoogste_waarde))
-
-                if car.punten + 100 < i * 2:
+                if car.dood:
+                    car.kleur = (0,0,255)
+                    genome.fitness = round(bereken_fitness(car.punten, frame, car.dood, False, hoogste_waarde, False))
+                if car.punten + 100 < frame * 2:
                     car.kleur = (0,255,0)
-                    genome.fitness = round(bereken_fitness(car.punten, i, False, True, hoogste_waarde))
+                    genome.fitness = round(bereken_fitness(car.punten, frame, False, True, hoogste_waarde, False))
                     car.dood = True
-                    
-                if (i * 2) - 100 > hoogste_waarde or car.punten > hoogste_waarde - 500:
+                if car.punten > hoogste_waarde - 400:
+                    genome.fitness = round(bereken_fitness(car.punten, frame, False, True, hoogste_waarde, True))
+                    if save_of_niet(pygame.key.get_pressed()):
+                        save_genome(genome)
+                    running = False
+                if (frame * 2) - 100 > hoogste_waarde:
                     running = False
     
-        autos = [car for car, genome in ais] # checken of alle mfers dood zijn type shit
-        if all(auto.dood for auto in autos):
+
+        if all(auto.dood for auto in [car for car, genome in ais]): # checken of alle mfers dood zijn type shit
             running = False
-    
 
     for car, genome in ais:
-        if genome.fitness == 0:
-            punten = bereken_fitness(car.punten, i, car.dood, False, hoogste_waarde)
-            genome.fitness = round(punten)
+        if genome.fitness == 0 or genome.fitness is None:
+            genome.fitness = round(bereken_fitness(car.punten, frame, car.dood, False, hoogste_waarde, False))
+        
 
 def inputs_kijken(keys, achtergrond, ais):
     global track_info
     if keys[LAAT_ZIEN_TOETS]:
         laat_simulatie_zien(achtergrond, [car for car, genome in ais])
-
-    if keys[KILL_MYSELF_TOETS]:
-        return False
     if keys[ITS_TIME]:
         track_info = {"goofyahhtrack.png":[220, 100, 140], "untitled-2.png":[222, 101, 140], "lukeenbastrack.png": [630, 574, 210], "untitled.png":[246, 66,90]}
         its_time_for_a_upgrade()
+    if keys[IT_IS_NOT_TIME]:
+        track_info = {"goofyahhtrack.png":[220, 100, 140], "circel.png":[400,65,90], "oval.png":[300,50,90],"sigma_face.png":[268, 163 ,80], "sigma_face_mirror.png":[742, 159, 290], "circel_mirror.png":[400,58,270]}
+        its_time_for_a_upgrade()
+    if keys[KILL_MYSELF_TOETS]:
+        return False
     return True
 
+def save_of_niet(keys):
+    if keys[SAVE_GENOME_TOETS]:
+        return True
+    return False
+def load_of_niet(keys):
+    if keys[LOAD_GENOME_TOETS]:
+        return True
+    return False
 def laat_simulatie_zien(achtergrond, autos):
     meeste_punten = 0
     meeste_punten_auto = None
@@ -134,11 +158,8 @@ def init_neat():
     population = neat.Population(config)
     population.add_reporter(BestGenomeSaver(filename="best_genome.pkl"))
 
-    winner = population.run(simulatie_prep, 10000000)
+    winner = population.run(simulatie_prep, AANTAL_GENERATIES)
 
 if __name__ == "__main__":
     init_neat()
     pygame.quit()
-
-
-

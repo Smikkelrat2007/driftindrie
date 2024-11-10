@@ -30,17 +30,15 @@ def krijg_ai_info(auto, punten_dict, gras_pixels):
             
     return input_lijst, auto.punten
 
-def apply_ai_outputs(auto, controls, gas_input_weight):
+def apply_ai_outputs(auto, controls):
     auto.links_rechts = controls[0]
-    auto.voor_achter = controls[1] * gas_input_weight
+    auto.voor_achter = controls[1]
 
 def run_ai_auto(auto, gras_pixels):
     auto.mechanica_toepassen()
     auto.positie_veranderen()
     if auto.positie_checken(gras_pixels):
         auto.dood = True
-        return True
-    return False
 
 def run_autos(autos, punten_dict, gras_pixels):
     verwijder_auto = []

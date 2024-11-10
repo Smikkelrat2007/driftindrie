@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from info import *
+from info import image_extensies, mask_sprijdings_lijst, track_info_deluxe_max_ultra
 import random
 from collections import deque
 from tkinter import Tk, PhotoImage
@@ -59,7 +59,6 @@ def zoek_gras_pixels(achtergrond_plaatje):
     root = Tk()
     root.withdraw()
 
-    # Construct the correct path to the image file
     image_path = os.path.join('tracks', achtergrond_plaatje)
     plaatje = PhotoImage(file=image_path)
 

@@ -32,7 +32,7 @@ def verwerk_input(game_on, autos):
     return game_on, autos
 
 def game(autos):
-    dict, hoogste_waarde, achtergrond, gras_pixels = mask_de_track()
+    dict, hoogste_waarde, achtergrond, gras_pixels = mask_de_track(track_info)
     scherm_maken(scherm_breete, scherm_hoogte)
     # autos = maak_test_auto(track_info[achtergrond][0], track_info[achtergrond][1], 90, 0, autos)
     
